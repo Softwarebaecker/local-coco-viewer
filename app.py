@@ -11,6 +11,9 @@ from PIL import Image, ImageDraw, ImageTk
 
 from navigation import ImageList
 
+import threading
+import time
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 
@@ -42,6 +45,14 @@ class App(tk.Tk):
 
         self.bind("<Left>", self.previous_image)
         self.bind("<Right>", self.next_image)
+        self.bind("<,>", self.prev_image_10)
+        self.bind("<.>", self.next_image_10)
+        self.bind("<space>", self.play_pause)
+        self.bind("<Up>", self.speed_up)
+        self.bind("<Down>", self.speed_down)
+
+        self.threadRunning = False
+        self.speed = 0.1
 
     def load_annotations(self) -> dict:
         """Loads annotations file.
@@ -92,9 +103,7 @@ class App(tk.Tk):
         # Create layer for bbox
         bbox_layer = Image.new('RGBA', img_open.size, (255, 255, 255, 0))
         draw = ImageDraw.Draw(bbox_layer)
-
-        # test bbox
-        #draw.rectangle(xy=[300, 100, 500, 300], fill=(255, 0, 0, 80), outline=(255, 0, 0, 0))
+        draw.text((10, 10), str(img_id))
 
         objects = self.get_objects(img_id)
         obj_categories = [self.categories[obj['category_id']] for obj in objects]
@@ -156,3 +165,46 @@ class App(tk.Tk):
         """
         if event:
             self.load_image(self.images.prev())
+
+    def speed_up(self, event):
+        if event:
+            if self.speed > 0.09:
+                self.speed= self.speed - 0.001
+                print("Speed is now by ", self.speed, "sec")
+
+    def speed_down(self, event):
+        if event:
+            if self.speed < 0.3:
+                self.speed = self.speed + 0.005
+                print("Speed is now by ", self.speed, "sec")
+
+    def play(self):
+        while self.threadRunning:
+            start = time.time()
+            self.load_image(self.images.next())
+            end = time.time()
+            if(end - start) < self.speed:
+                time.sleep(self.speed - (end - start))
+            else:
+                print("out of time")
+
+    def play_pause(self, event):
+        if event:
+            if self.threadRunning:
+                self.threadRunning = False
+            else:
+                self.threadRunning = True
+                threading.Thread(target=self.play).start()
+
+    def next_image_10(self, event):
+        if event:
+            for i in range(9):
+                self.images.next()
+            self.load_image(self.images.next())
+
+    def prev_image_10(self, event):
+        if event:
+            for i in range(9):
+                self.images.prev()
+            self.load_image(self.images.prev())
+
